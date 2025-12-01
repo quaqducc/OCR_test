@@ -57,7 +57,7 @@ def init_local_encoder_from_deepseek(local_encoder: torch.nn.Module, checkpoint_
 	"""
 	Initialize ProtonX ImageEncoderViT from DeepSeekOCR checkpoints.
 	- Accepts checkpoints where local encoder lives under:
-	  'image_encoder.*' or 'vision_tower_high.image_encoder.*' (and variants).
+	  'image_encoder.*', 'sam_model.*', or 'vision_tower_high.image_encoder.*' (and variants).
 	"""
 	src = _load_raw_state(checkpoint_path)
 
@@ -67,9 +67,17 @@ def init_local_encoder_from_deepseek(local_encoder: torch.nn.Module, checkpoint_
 			return tkey
 		# Try common prefixes used by DeepSeekOCR
 		for prefix in [
+			# direct/local
 			"image_encoder.",
+			"sam_model.",
+			# wrapped under 'model.'
+			"model.image_encoder.",
+			"model.sam_model.",
+			# vision tower nesting
 			"vision_tower_high.image_encoder.",
+			"model.vision_tower_high.image_encoder.",
 			"vision_tower_high.",
+			"model.vision_tower_high.",
 		]:
 			cand = prefix + tkey
 			if cand in src:
@@ -108,8 +116,8 @@ def init_clip_from_deepseek(clip_model: torch.nn.Module, checkpoint_path: str) -
 
 		# Most other submodule names (qkv_proj, out_proj, mlp.fc1/fc2, embeddings.*) align already
 
-		# Some checkpoints put VitModel under 'vision_model.'
-		for prefix in ["vision_model.", ""]:
+		# Some checkpoints put VitModel under 'vision_model.' or 'model.vision_model.'
+		for prefix in ["vision_model.", "model.vision_model.", ""]:
 			full_key = prefix + skey
 			if full_key in src:
 				return full_key
