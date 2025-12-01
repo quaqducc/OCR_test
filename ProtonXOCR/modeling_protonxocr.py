@@ -67,6 +67,44 @@ class ProtonXOCRModel(nn.Module):
 			bias=True,
 		)
 
+	def freeze_for_projector_training(self) -> None:
+		"""
+		Freeze local encoder, CLIP branch, and LLM (or text stub) for projector-only training.
+		Sets frozen modules to eval() and keeps projector in train() mode.
+		"""
+		# 1) Freeze vision encoders
+		self.local_encoder.eval()
+		for p in self.local_encoder.parameters():
+			p.requires_grad = False
+		self.clip.eval()
+		for p in self.clip.parameters():
+			p.requires_grad = False
+
+		# 2) Freeze language model or text stubs
+		if self.llm is not None:
+			self.llm.eval()
+			for p in self.llm.parameters():
+				p.requires_grad = False
+		else:
+			# shape-probe path: freeze the stub too
+			self.text_embedding.eval()
+			self.lm_head.eval()
+			for p in self.text_embedding.parameters():
+				p.requires_grad = False
+			for p in self.lm_head.parameters():
+				p.requires_grad = False
+
+		# 3) Ensure projector is trainable
+		self.projector.train()
+		for p in self.projector.parameters():
+			p.requires_grad = True
+
+	def projector_parameters(self):
+		"""
+		Return an iterator over trainable projector parameters.
+		"""
+		return (p for p in self.projector.parameters() if p.requires_grad)
+
 	def forward(self, images: torch.Tensor, input_ids: Optional[torch.LongTensor] = None):
 		device = next(self.parameters()).device
 		images = images.to(device)

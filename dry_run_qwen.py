@@ -11,6 +11,16 @@ def main():
 	)
 	model = ProtonXOCRModel(cfg).eval().to(device)
 
+	# Step 3: Freeze encoders + LLM, keep projector trainable
+	model.freeze_for_projector_training()
+	optimizer = torch.optim.AdamW(model.projector_parameters(), lr=1e-3, weight_decay=0.01)
+
+	# Inspect trainable parameters
+	trainable = [(n, tuple(p.shape)) for n, p in model.named_parameters() if p.requires_grad]
+	print("trainable_params_count:", len(trainable))
+	for n, shp in trainable:
+		print("trainable:", n, shp)
+
 	# Prepare dummy inputs
 	B, H, W = 1, 384, 384
 	images = torch.randn(B, 3, H, W, device=device)
