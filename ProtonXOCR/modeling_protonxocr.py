@@ -61,7 +61,11 @@ class ProtonXOCRModel(nn.Module):
 			self.decoder_hidden_size = int(getattr(self.llm.config, "hidden_size", cfg.decoder_hidden_size))
 
 		# Projector: concat(CLIP 1024, Local 1024) -> LLM hidden size
-		self.projector = MlpProjector(in_features=2048, out_features=self.decoder_hidden_size, bias=True)
+		self.projector = MlpProjector(
+			in_features=self.clip.embeddings.embed_dim + self.local_encoder.net_3.out_channels,
+			out_features=self.decoder_hidden_size,
+			bias=True,
+		)
 
 	def forward(self, images: torch.Tensor, input_ids: Optional[torch.LongTensor] = None):
 		device = next(self.parameters()).device
